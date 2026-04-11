@@ -259,7 +259,7 @@ export class DragInput {
     const coneScale = 0.375 + power * 0.625; // maps [0,1] -> [0.375, 1.0]
     this.indicatorArrow.scale.setScalar(coneScale);
     const angle = Math.atan2(ndy, ndx);
-    this.indicatorArrow.rotation.set(Math.PI / 2, 0, angle - Math.PI / 2);
+    this.indicatorArrow.rotation.set(0, 0, angle - Math.PI / 2);
     this.indicatorArrowMat.color.copy(this._color);
     this.indicatorArrow.visible = true;
   }

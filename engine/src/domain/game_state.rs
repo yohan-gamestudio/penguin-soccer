@@ -24,6 +24,7 @@ pub enum TurnPhase {
     },
     Simulating,
     Resolving,
+    Ended,
 }
 
 impl TurnPhase {

@@ -3,27 +3,76 @@ use crate::domain::field::Field;
 use crate::domain::penguin::Penguin;
 use crate::domain::types::Vec2;
 
+const CORNER_RADIUS: f64 = 30.0; // 3 world units * 10 scale = 30 engine units
+
+fn collide_circle_corner(pos: &mut Vec2, vel: &mut Vec2, radius: f64, field: &Field) {
+    let corners = [
+        Vec2::new(CORNER_RADIUS, CORNER_RADIUS),                              // top-left
+        Vec2::new(field.width - CORNER_RADIUS, CORNER_RADIUS),                // top-right
+        Vec2::new(field.width - CORNER_RADIUS, field.height - CORNER_RADIUS), // bottom-right
+        Vec2::new(CORNER_RADIUS, field.height - CORNER_RADIUS),               // bottom-left
+    ];
+
+    for corner in &corners {
+        // Only check if we're in the corner region
+        let in_corner_x = pos.x < CORNER_RADIUS || pos.x > field.width - CORNER_RADIUS;
+        let in_corner_y = pos.y < CORNER_RADIUS || pos.y > field.height - CORNER_RADIUS;
+        if !in_corner_x || !in_corner_y {
+            continue;
+        }
+
+        let delta = Vec2::new(pos.x - corner.x, pos.y - corner.y);
+        let dist = delta.length();
+        if dist < 1e-10 {
+            continue;
+        }
+
+        // Check if circle is outside the rounded corner
+        if dist + radius > CORNER_RADIUS {
+            let normal = Vec2::new(delta.x / dist, delta.y / dist);
+            // Push circle inside
+            let penetration = dist + radius - CORNER_RADIUS;
+            pos.x += normal.x * penetration;
+            pos.y += normal.y * penetration;
+            // Reflect velocity
+            let dot = vel.x * normal.x + vel.y * normal.y;
+            if dot > 0.0 {
+                vel.x -= 2.0 * dot * normal.x;
+                vel.y -= 2.0 * dot * normal.y;
+            }
+        }
+    }
+}
+
 pub fn collide_circle_wall(pos: &mut Vec2, vel: &mut Vec2, radius: f64, field: &Field) {
-    // Left wall
-    if pos.x - radius < 0.0 {
+    let in_corner_left = pos.x < CORNER_RADIUS;
+    let in_corner_right = pos.x > field.width - CORNER_RADIUS;
+    let in_corner_top = pos.y < CORNER_RADIUS;
+    let in_corner_bottom = pos.y > field.height - CORNER_RADIUS;
+
+    // Left wall (only if not in corner region)
+    if !in_corner_top && !in_corner_bottom && pos.x - radius < 0.0 {
         pos.x = radius;
         vel.x = vel.x.abs();
     }
     // Right wall
-    if pos.x + radius > field.width {
+    if !in_corner_top && !in_corner_bottom && pos.x + radius > field.width {
         pos.x = field.width - radius;
         vel.x = -vel.x.abs();
     }
     // Top wall
-    if pos.y - radius < 0.0 {
+    if !in_corner_left && !in_corner_right && pos.y - radius < 0.0 {
         pos.y = radius;
         vel.y = vel.y.abs();
     }
     // Bottom wall
-    if pos.y + radius > field.height {
+    if !in_corner_left && !in_corner_right && pos.y + radius > field.height {
         pos.y = field.height - radius;
         vel.y = -vel.y.abs();
     }
+
+    // Corner collisions
+    collide_circle_corner(pos, vel, radius, field);
 }
 
 pub fn collide_penguin_wall(penguin: &mut Penguin, field: &Field) {
@@ -31,16 +80,22 @@ pub fn collide_penguin_wall(penguin: &mut Penguin, field: &Field) {
 }
 
 pub fn collide_ball_wall(ball: &mut Ball, field: &Field) {
-    // Top wall
-    if ball.pos.y - ball.radius < 0.0 {
+    let in_corner_left = ball.pos.x < CORNER_RADIUS;
+    let in_corner_right = ball.pos.x > field.width - CORNER_RADIUS;
+
+    // Top wall (skip corner regions)
+    if !in_corner_left && !in_corner_right && ball.pos.y - ball.radius < 0.0 {
         ball.pos.y = ball.radius;
         ball.vel.y = ball.vel.y.abs();
     }
-    // Bottom wall
-    if ball.pos.y + ball.radius > field.height {
+    // Bottom wall (skip corner regions)
+    if !in_corner_left && !in_corner_right && ball.pos.y + ball.radius > field.height {
         ball.pos.y = field.height - ball.radius;
         ball.vel.y = -ball.vel.y.abs();
     }
+
+    // Corner collisions (before goal-related left/right checks)
+    collide_circle_corner(&mut ball.pos, &mut ball.vel, ball.radius, field);
 
     // Left/right walls — skip bouncing when ball is within a goal opening
     let in_left_goal = field.goals.iter().any(|g| {

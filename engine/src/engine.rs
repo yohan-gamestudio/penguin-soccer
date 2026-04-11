@@ -89,6 +89,7 @@ impl GameEngine {
                     self.state.match_timer = 0.0;
                     let result = match_flow::determine_winner(&self.state.scores);
                     events.push(GameEvent::MatchEnded(result));
+                    self.state.phase = TurnPhase::Ended;
                     return events;
                 }
 
@@ -108,6 +109,7 @@ impl GameEngine {
                 self.actions.clear();
                 events.push(GameEvent::PhaseChanged(self.state.phase.clone()));
             }
+            TurnPhase::Ended => {}
         }
 
         events
@@ -161,5 +163,92 @@ impl GameEngine {
         }
         self.state.ball.pos = self.initial_ball_pos;
         self.state.ball.vel = Vec2::ZERO;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::field::Field;
+    use crate::domain::types::Vec2;
+
+    fn create_test_engine() -> GameEngine {
+        let field = Field::new(800.0, 400.0);
+        let players = vec![
+            (0, 0, Vec2::new(200.0, 200.0)),
+            (1, 1, Vec2::new(600.0, 200.0)),
+        ];
+        let ball_pos = Vec2::new(400.0, 200.0);
+        GameEngine::new(field, players, ball_pos, 120.0)
+    }
+
+    #[test]
+    fn test_goal_resets_velocities() {
+        let mut engine = create_test_engine();
+
+        // Place ball at left goal with velocity
+        engine.state.ball.pos = Vec2::new(5.0, 200.0);
+        engine.state.ball.vel = Vec2::new(-100.0, 50.0);
+        engine.state.penguins[0].vel = Vec2::new(50.0, -30.0);
+        engine.state.penguins[1].vel = Vec2::new(-20.0, 10.0);
+        engine.state.phase = TurnPhase::Simulating;
+
+        let events = engine.tick(1.0 / 60.0);
+
+        let goal_scored = events.iter().any(|e| matches!(e, GameEvent::GoalScored { .. }));
+        assert!(goal_scored, "Goal should have been scored");
+
+        assert_eq!(engine.state.ball.vel, Vec2::ZERO, "Ball velocity should be zero after goal");
+        for penguin in &engine.state.penguins {
+            assert_eq!(penguin.vel, Vec2::ZERO, "Penguin velocity should be zero after goal");
+        }
+    }
+
+    #[test]
+    fn test_goal_resets_positions() {
+        let mut engine = create_test_engine();
+
+        engine.state.ball.pos = Vec2::new(5.0, 200.0);
+        engine.state.ball.vel = Vec2::new(-100.0, 0.0);
+        engine.state.penguins[0].pos = Vec2::new(100.0, 100.0);
+        engine.state.penguins[1].pos = Vec2::new(700.0, 300.0);
+        engine.state.phase = TurnPhase::Simulating;
+
+        engine.tick(1.0 / 60.0);
+
+        assert_eq!(engine.state.ball.pos, Vec2::new(400.0, 200.0), "Ball should reset to center");
+        assert_eq!(engine.state.penguins[0].pos, Vec2::new(200.0, 200.0), "Penguin 0 should reset");
+        assert_eq!(engine.state.penguins[1].pos, Vec2::new(600.0, 200.0), "Penguin 1 should reset");
+    }
+
+    #[test]
+    fn test_match_ended_only_fires_once() {
+        let mut engine = create_test_engine();
+        engine.state.match_timer = 0.01; // Almost over
+        engine.state.phase = TurnPhase::Simulating;
+
+        let events1 = engine.tick(1.0 / 60.0);
+        let match_ended_count1 = events1.iter().filter(|e| matches!(e, GameEvent::MatchEnded(_))).count();
+        assert_eq!(match_ended_count1, 1, "MatchEnded should fire once");
+
+        // Second tick should NOT fire MatchEnded again
+        let events2 = engine.tick(1.0 / 60.0);
+        let match_ended_count2 = events2.iter().filter(|e| matches!(e, GameEvent::MatchEnded(_))).count();
+        assert_eq!(match_ended_count2, 0, "MatchEnded should NOT fire again");
+    }
+
+    #[test]
+    fn test_phase_transitions_to_planning_after_goal() {
+        let mut engine = create_test_engine();
+        engine.state.ball.pos = Vec2::new(5.0, 200.0);
+        engine.state.ball.vel = Vec2::new(-100.0, 0.0);
+        engine.state.phase = TurnPhase::Simulating;
+
+        engine.tick(1.0 / 60.0);
+
+        assert!(
+            matches!(engine.state.phase, TurnPhase::Planning { .. }),
+            "Phase should transition to Planning after goal"
+        );
     }
 }

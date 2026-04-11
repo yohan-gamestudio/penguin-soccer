@@ -12,10 +12,10 @@ use tokio::sync::mpsc;
 
 use crate::protocol::{EntityState, ServerMessage};
 
-const FIELD_WIDTH: f64 = 800.0;
-const FIELD_HEIGHT: f64 = 400.0;
-const BALL_CENTER_X: f64 = 400.0;
-const BALL_CENTER_Y: f64 = 200.0;
+const FIELD_WIDTH: f64 = 720.0;
+const FIELD_HEIGHT: f64 = 360.0;
+const BALL_CENTER_X: f64 = 360.0;
+const BALL_CENTER_Y: f64 = 180.0;
 const MATCH_DURATION: f64 = 120.0;
 const PLANNING_DEADLINE: f64 = 30.0;
 const SIM_DT: f64 = 1.0 / 60.0;
@@ -99,8 +99,15 @@ impl GameSession {
                         self.broadcast_frame();
                     }
 
-                    for event in events {
-                        self.handle_event(&event);
+                    let mut game_over = false;
+                    for event in &events {
+                        self.handle_event(event);
+                        if matches!(event, GameEvent::MatchEnded(_)) {
+                            game_over = true;
+                        }
+                    }
+                    if game_over {
+                        break;
                     }
                 }
                 cmd = self.command_rx.recv() => {
@@ -137,6 +144,7 @@ impl GameSession {
                     TurnPhase::Planning { .. } => "planning",
                     TurnPhase::Simulating => "simulating",
                     TurnPhase::Resolving => "resolving",
+                    TurnPhase::Ended => "ended",
                 };
                 self.broadcast(&ServerMessage::PhaseChanged {
                     phase: phase_str.to_string(),
@@ -201,16 +209,16 @@ impl GameSession {
 
 fn team0_starting_pos(idx: u8) -> Vec2 {
     match idx {
-        0 => Vec2::new(200.0, 150.0),
-        1 => Vec2::new(200.0, 250.0),
-        _ => Vec2::new(150.0, 200.0),
+        0 => Vec2::new(180.0, 135.0),
+        1 => Vec2::new(180.0, 225.0),
+        _ => Vec2::new(135.0, 180.0),
     }
 }
 
 fn team1_starting_pos(idx: u8) -> Vec2 {
     match idx {
-        0 => Vec2::new(600.0, 150.0),
-        1 => Vec2::new(600.0, 250.0),
-        _ => Vec2::new(650.0, 200.0),
+        0 => Vec2::new(540.0, 135.0),
+        1 => Vec2::new(540.0, 225.0),
+        _ => Vec2::new(585.0, 180.0),
     }
 }

@@ -1,12 +1,12 @@
 import * as THREE from 'three';
 
-// Engine coords: 800x400, scale 0.1 => Three.js: 80x40, centered at origin
-// Engine (0,0) maps to Three.js (-40, -20)
-// Engine (400, 200) maps to Three.js (0, 0)
+// Engine coords: 720x360, scale 0.1 => Three.js: 72x36, centered at origin
+// Engine (0,0) maps to Three.js (-36, -18)
+// Engine (360, 180) maps to Three.js (0, 0)
 
 export const ENGINE_SCALE = 0.1;
-export const FIELD_WIDTH = 80;  // 800 * 0.1
-export const FIELD_HEIGHT = 40; // 400 * 0.1
+export const FIELD_WIDTH = 72;  // 720 * 0.1
+export const FIELD_HEIGHT = 36; // 360 * 0.1
 
 /** Convert engine coordinates to Three.js world coordinates */
 export function engineToWorld(ex: number, ey: number): [number, number] {
@@ -29,8 +29,23 @@ export function createField(scene: THREE.Scene): void {
   floor.receiveShadow = true;
   scene.add(floor);
 
-  // Field surface - glacial blue ice
-  const fieldGeo = new THREE.PlaneGeometry(FIELD_WIDTH, FIELD_HEIGHT);
+  // Field surface - glacial blue ice (rounded rectangle)
+  const cornerRadius = 3; // world units
+  const hw = FIELD_WIDTH / 2;
+  const hh = FIELD_HEIGHT / 2;
+
+  const shape = new THREE.Shape();
+  shape.moveTo(-hw + cornerRadius, -hh);
+  shape.lineTo(hw - cornerRadius, -hh);
+  shape.quadraticCurveTo(hw, -hh, hw, -hh + cornerRadius);
+  shape.lineTo(hw, hh - cornerRadius);
+  shape.quadraticCurveTo(hw, hh, hw - cornerRadius, hh);
+  shape.lineTo(-hw + cornerRadius, hh);
+  shape.quadraticCurveTo(-hw, hh, -hw, hh - cornerRadius);
+  shape.lineTo(-hw, -hh + cornerRadius);
+  shape.quadraticCurveTo(-hw, -hh, -hw + cornerRadius, -hh);
+
+  const fieldGeo = new THREE.ShapeGeometry(shape);
   const fieldMat = new THREE.MeshStandardMaterial({
     color: 0xaaddff,
     roughness: 0.1,
@@ -46,16 +61,21 @@ export function createField(scene: THREE.Scene): void {
   // Field markings (white lines, subtle opacity)
   const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2, transparent: true, opacity: 0.4 });
 
-  // Outline
-  const outlinePoints = [
-    new THREE.Vector3(-FIELD_WIDTH / 2, -FIELD_HEIGHT / 2, 0),
-    new THREE.Vector3(FIELD_WIDTH / 2, -FIELD_HEIGHT / 2, 0),
-    new THREE.Vector3(FIELD_WIDTH / 2, FIELD_HEIGHT / 2, 0),
-    new THREE.Vector3(-FIELD_WIDTH / 2, FIELD_HEIGHT / 2, 0),
-    new THREE.Vector3(-FIELD_WIDTH / 2, -FIELD_HEIGHT / 2, 0),
-  ];
-  const outlineGeo = new THREE.BufferGeometry().setFromPoints(outlinePoints);
-  const outline = new THREE.Line(outlineGeo, lineMat);
+  // Rounded outline
+  const outlineCurve = new THREE.Path();
+  outlineCurve.moveTo(-hw + cornerRadius, -hh);
+  outlineCurve.lineTo(hw - cornerRadius, -hh);
+  outlineCurve.quadraticCurveTo(hw, -hh, hw, -hh + cornerRadius);
+  outlineCurve.lineTo(hw, hh - cornerRadius);
+  outlineCurve.quadraticCurveTo(hw, hh, hw - cornerRadius, hh);
+  outlineCurve.lineTo(-hw + cornerRadius, hh);
+  outlineCurve.quadraticCurveTo(-hw, hh, -hw, hh - cornerRadius);
+  outlineCurve.lineTo(-hw, -hh + cornerRadius);
+  outlineCurve.quadraticCurveTo(-hw, -hh, -hw + cornerRadius, -hh);
+  const outlinePoints = outlineCurve.getPoints(64);
+  const outlineVectors = outlinePoints.map(p => new THREE.Vector3(p.x, p.y, 0));
+  const outlineGeo = new THREE.BufferGeometry().setFromPoints(outlineVectors);
+  const outline = new THREE.LineLoop(outlineGeo, lineMat);
   outline.position.z = 0.01;
   scene.add(outline);
 
@@ -146,8 +166,8 @@ export function createField(scene: THREE.Scene): void {
     metalness: 0.3,
   });
 
-  // Top wall
-  const topWallGeo = new THREE.BoxGeometry(FIELD_WIDTH + wallThickness * 2, wallThickness, wallHeight);
+  // Top wall (shortened to accommodate rounded corners)
+  const topWallGeo = new THREE.BoxGeometry(FIELD_WIDTH - cornerRadius * 2 + wallThickness * 2, wallThickness, wallHeight);
   const topWall = new THREE.Mesh(topWallGeo, wallMat);
   topWall.position.set(0, FIELD_HEIGHT / 2 + wallThickness / 2, wallHeight / 2);
   scene.add(topWall);

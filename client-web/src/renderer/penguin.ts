@@ -6,7 +6,7 @@ const TEAM_COLORS: Record<number, number> = {
 };
 
 const LERP_SPEED = 0.15;
-const PENGUIN_SCALE = 2.5; // Scale factor so penguins look proportional on 80x40 field
+const PENGUIN_SCALE = 3.0; // Scale factor so penguins look proportional on 80x40 field
 
 export class PenguinMesh {
   public group: THREE.Group;

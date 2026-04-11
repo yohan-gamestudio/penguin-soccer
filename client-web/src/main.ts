@@ -157,6 +157,11 @@ class Game {
         this.drag.setEnabled(false);
         this.actionButtons.style.display = 'none';
         this.clearPenguins();
+        // Reset ball to center
+        this.ball.setPositionImmediate(0, 0);
+        // Reconnect WebSocket for clean state (leaves old room on server)
+        this.ws.disconnect();
+        this.ws.connect();
         break;
 
       case 'planning':

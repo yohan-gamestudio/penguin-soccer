@@ -14,20 +14,20 @@ export class BallMesh {
     this.mesh = new THREE.Group();
 
     // Main ball - white sphere with standard material
-    const geo = new THREE.SphereGeometry(0.6, 16, 16);
+    const geo = new THREE.SphereGeometry(1.0, 16, 16);
     const mat = new THREE.MeshStandardMaterial({
       color: 0xffffff,
       roughness: 0.3,
       metalness: 0.1,
     });
     this.sphere = new THREE.Mesh(geo, mat);
-    this.sphere.position.z = 0.6;
+    this.sphere.position.z = 1.0;
     this.sphere.castShadow = true;
     this.mesh.add(this.sphere);
 
     // Subtle glow point light attached to ball
     const glow = new THREE.PointLight(0xffffff, 0.3, 5);
-    glow.position.z = 0.6;
+    glow.position.z = 1.0;
     this.mesh.add(glow);
   }
 
