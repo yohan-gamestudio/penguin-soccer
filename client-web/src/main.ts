@@ -99,9 +99,14 @@ class Game {
       this.transitionTo('planning');
     });
 
-    this.resultUI.setOnPlayAgain(() => {
+    this.lobbyUI.setOnReturnToLobby(() => {
       this.transitionTo('lobby');
-      this.lobbyUI.show();
+      this.lobbyUI.showRoom();
+    });
+
+    this.resultUI.setOnPlayAgain(() => {
+      this.ws.send({ type: 'ReturnToLobby' });
+      this.transitionTo('lobby');
     });
 
     // Network event handlers
@@ -157,11 +162,8 @@ class Game {
         this.drag.setEnabled(false);
         this.actionButtons.style.display = 'none';
         this.clearPenguins();
-        // Reset ball to center
         this.ball.setPositionImmediate(0, 0);
-        // Reconnect WebSocket for clean state (leaves old room on server)
-        this.ws.disconnect();
-        this.ws.connect();
+        // Don't disconnect WS — the room persists; lobby shows via RoomState handler
         break;
 
       case 'planning':

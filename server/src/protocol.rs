@@ -10,7 +10,8 @@ pub enum ClientMessage {
     CreateRoom,
     JoinRoom { room_id: String },
     ChangeTeam { team: TeamId },
-    StartGame,
+    ToggleReady,
+    ReturnToLobby,
     SubmitAction { direction: [f64; 2], power: f64 },
 }
 
@@ -19,7 +20,7 @@ pub enum ClientMessage {
 #[serde(tag = "type")]
 pub enum ServerMessage {
     RoomCreated { room_id: String },
-    RoomState { players: Vec<PlayerInfo>, you: PlayerId },
+    RoomState { players: Vec<PlayerInfo>, you: PlayerId, room_state: String },
     Error { message: String },
     PhaseChanged { phase: String },
     PlanningStart { deadline: f64 },
@@ -34,6 +35,7 @@ pub struct PlayerInfo {
     pub id: PlayerId,
     pub team: TeamId,
     pub name: String,
+    pub ready: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]

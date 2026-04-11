@@ -4,13 +4,14 @@ use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{State, WebSocketUpgrade};
 use axum::response::IntoResponse;
 use futures_util::{SinkExt, StreamExt};
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::{mpsc, oneshot, Mutex};
 
 use penguin_soccer_engine::domain::types::PlayerId;
 
 use crate::game_session::{GameCommand, GameSession};
 use crate::lobby::RoomManager;
 use crate::protocol::{ClientMessage, ServerMessage};
+use crate::room::Room;
 
 pub type AppState = Arc<Mutex<RoomManager>>;
 
@@ -19,6 +20,18 @@ pub async fn ws_upgrade(
     State(state): State<AppState>,
 ) -> impl IntoResponse {
     ws.on_upgrade(move |socket| handle_socket(socket, state))
+}
+
+fn broadcast_room_state(room: &Room) {
+    let infos = room.player_infos();
+    let room_state = room.state_str().to_string();
+    for p in room.players.values() {
+        let _ = p.sender.send(ServerMessage::RoomState {
+            players: infos.clone(),
+            you: p.data.player_id,
+            room_state: room_state.clone(),
+        });
+    }
 }
 
 async fn handle_socket(socket: WebSocket, state: AppState) {
@@ -74,10 +87,7 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                 });
 
                 let room = mgr.rooms.get(&room_id).unwrap();
-                let _ = tx.send(ServerMessage::RoomState {
-                    players: room.player_infos(),
-                    you: player_id,
-                });
+                broadcast_room_state(room);
             }
 
             ClientMessage::JoinRoom { room_id } => {
@@ -88,15 +98,7 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                         current_player_id = Some(player_id);
 
                         let room = mgr.rooms.get(&room_id).unwrap();
-                        let infos = room.player_infos();
-
-                        // Send personalized RoomState to each player
-                        for p in room.players.values() {
-                            let _ = p.sender.send(ServerMessage::RoomState {
-                                players: infos.clone(),
-                                you: p.player_id,
-                            });
-                        }
+                        broadcast_room_state(room);
                     }
                     Err(e) => {
                         let _ = tx.send(ServerMessage::Error { message: e });
@@ -112,11 +114,7 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                     if let Some(room) = mgr.rooms.get_mut(room_id) {
                         match room.change_team(player_id, team) {
                             Ok(()) => {
-                                let infos = room.player_infos();
-                                room.broadcast(&ServerMessage::RoomState {
-                                    players: infos,
-                                    you: player_id,
-                                });
+                                broadcast_room_state(room);
                             }
                             Err(e) => {
                                 let _ = tx.send(ServerMessage::Error { message: e });
@@ -126,31 +124,65 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                 }
             }
 
-            ClientMessage::StartGame => {
-                if let (Some(ref room_id), Some(_player_id)) =
+            ClientMessage::ToggleReady => {
+                if let (Some(ref room_id), Some(player_id)) =
                     (&current_room, current_player_id)
                 {
                     let mut mgr = state.lock().await;
                     if let Some(room) = mgr.rooms.get_mut(room_id) {
-                        if !room.can_start() {
-                            let _ = tx.send(ServerMessage::Error {
-                                message: "Cannot start: need at least 1 player per team"
-                                    .to_string(),
-                            });
-                            continue;
+                        match room.toggle_ready(player_id) {
+                            Ok(_) => {
+                                // Broadcast updated room state to all players
+                                broadcast_room_state(room);
+
+                                // Auto-start if all ready
+                                if room.can_start() {
+                                    room.start_game();
+
+                                    let players: Vec<_> = room
+                                        .players
+                                        .values()
+                                        .map(|p| {
+                                            (p.data.player_id, p.data.team, p.sender.clone())
+                                        })
+                                        .collect();
+
+                                    let (game_over_tx, game_over_rx) = oneshot::channel();
+                                    let cmd_tx = GameSession::start(players, game_over_tx);
+                                    room.game_cmd_tx = Some(cmd_tx);
+
+                                    // Broadcast playing state
+                                    broadcast_room_state(room);
+
+                                    // Spawn task to detect game over and update room
+                                    let state_clone = state.clone();
+                                    let room_id_clone = room_id.clone();
+                                    tokio::spawn(async move {
+                                        let _ = game_over_rx.await;
+                                        let mut mgr = state_clone.lock().await;
+                                        if let Some(room) =
+                                            mgr.rooms.get_mut(&room_id_clone)
+                                        {
+                                            room.end_game();
+                                            broadcast_room_state(room);
+                                        }
+                                    });
+                                }
+                            }
+                            Err(e) => {
+                                let _ = tx.send(ServerMessage::Error { message: e });
+                            }
                         }
+                    }
+                }
+            }
 
-                        room.game_active = true;
-
-                        // Collect player data for game session
-                        let players: Vec<_> = room
-                            .players
-                            .values()
-                            .map(|p| (p.player_id, p.team, p.sender.clone()))
-                            .collect();
-
-                        let cmd_tx = GameSession::start(players);
-                        room.game_cmd_tx = Some(cmd_tx);
+            ClientMessage::ReturnToLobby => {
+                if let Some(ref room_id) = current_room {
+                    let mut mgr = state.lock().await;
+                    if let Some(room) = mgr.rooms.get_mut(room_id) {
+                        room.return_to_lobby();
+                        broadcast_room_state(room);
                     }
                 }
             }
@@ -189,6 +221,9 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
             room.remove_player(player_id);
             if room.players.is_empty() {
                 mgr.rooms.remove(&room_id);
+            } else {
+                // Notify remaining players
+                broadcast_room_state(room);
             }
         }
     }

@@ -286,6 +286,13 @@ canvas {
   background: rgba(30, 30, 80, 0.8) !important;
 }
 
+.btn-ready-active {
+  background: rgba(0, 255, 0, 0.2) !important;
+  border-color: #00ff00 !important;
+  color: #00ff00 !important;
+  text-shadow: 0 0 10px #00ff00;
+}
+
 /* Drag indicator */
 .drag-power-label {
   position: fixed;

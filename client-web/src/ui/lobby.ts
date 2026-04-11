@@ -6,7 +6,7 @@ export class LobbyUI {
   private roomSection: HTMLElement;
   private btnCreate: HTMLElement;
   private btnJoin: HTMLElement;
-  private btnStart: HTMLElement;
+  private btnReady: HTMLElement;
   private inputRoomCode: HTMLInputElement;
   private roomCodeDisplay: HTMLElement;
   private playerList: HTMLElement;
@@ -14,7 +14,9 @@ export class LobbyUI {
 
   private myId: number = -1;
   private players: PlayerInfo[] = [];
+  private currentRoomState: string = 'lobby';
   private onGameStart: (() => void) | null = null;
+  private onReturnToLobby: (() => void) | null = null;
   private currentRoomId: string = '';
 
   constructor(ws: GameWebSocket) {
@@ -25,7 +27,7 @@ export class LobbyUI {
     this.roomSection = document.getElementById('lobby-room')!;
     this.btnCreate = document.getElementById('btn-create')!;
     this.btnJoin = document.getElementById('btn-join')!;
-    this.btnStart = document.getElementById('btn-start')!;
+    this.btnReady = document.getElementById('btn-ready')!;
     this.inputRoomCode = document.getElementById('input-room-code') as HTMLInputElement;
     this.roomCodeDisplay = document.getElementById('room-code-display')!;
     this.playerList = document.getElementById('player-list')!;
@@ -38,10 +40,20 @@ export class LobbyUI {
     this.onGameStart = callback;
   }
 
+  public setOnReturnToLobby(callback: () => void): void {
+    this.onReturnToLobby = callback;
+  }
+
   public show(): void {
     this.overlay.style.display = 'flex';
     this.menuSection.style.display = 'block';
     this.roomSection.style.display = 'none';
+  }
+
+  public showRoom(): void {
+    this.overlay.style.display = 'flex';
+    this.menuSection.style.display = 'none';
+    this.roomSection.style.display = 'block';
   }
 
   public hide(): void {
@@ -75,13 +87,14 @@ export class LobbyUI {
       }
     });
 
-    this.btnStart.addEventListener('click', () => {
-      this.ws.send({ type: 'StartGame' });
+    this.btnReady.addEventListener('click', () => {
+      this.ws.send({ type: 'ToggleReady' });
     });
   }
 
   private setupNetworkHandlers(): void {
     this.ws.on('RoomCreated', (msg) => {
+      this.currentRoomId = msg.room_id;
       this.roomCodeDisplay.textContent = msg.room_id;
       this.menuSection.style.display = 'none';
       this.roomSection.style.display = 'block';
@@ -90,6 +103,7 @@ export class LobbyUI {
     this.ws.on('RoomState', (msg) => {
       this.myId = msg.you;
       this.players = msg.players;
+      this.currentRoomState = msg.room_state;
 
       // If we just joined (menu was showing), switch to room view
       if (this.menuSection.style.display !== 'none') {
@@ -98,10 +112,19 @@ export class LobbyUI {
         this.roomCodeDisplay.textContent = this.currentRoomId;
       }
 
-      this.renderPlayerList();
+      // If room_state is "lobby" and we were in game, show lobby again
+      if (msg.room_state === 'lobby') {
+        this.overlay.style.display = 'flex';
+        this.menuSection.style.display = 'none';
+        this.roomSection.style.display = 'block';
 
-      // Show start button if 2+ players
-      this.btnStart.style.display = msg.players.length >= 2 ? 'block' : 'none';
+        if (this.onReturnToLobby) {
+          this.onReturnToLobby();
+        }
+      }
+
+      this.renderPlayerList();
+      this.updateReadyButton();
     });
 
     this.ws.on('PhaseChanged', (msg) => {
@@ -116,6 +139,14 @@ export class LobbyUI {
     this.ws.on('Error', (msg) => {
       console.error('[Lobby] Error:', msg.message);
     });
+  }
+
+  private updateReadyButton(): void {
+    const me = this.players.find(p => p.id === this.myId);
+    if (me) {
+      this.btnReady.textContent = me.ready ? '✓ READY!' : 'READY';
+      this.btnReady.classList.toggle('btn-ready-active', me.ready);
+    }
   }
 
   private renderPlayerList(): void {
@@ -134,7 +165,6 @@ export class LobbyUI {
       teamBtn.className = `team-btn team-${player.team}`;
       teamBtn.textContent = player.team === 0 ? 'BLUE' : 'RED';
 
-      // Only allow changing own team
       if (player.id === this.myId) {
         teamBtn.addEventListener('click', () => {
           const newTeam = player.team === 0 ? 1 : 0;
@@ -145,8 +175,17 @@ export class LobbyUI {
         teamBtn.style.cursor = 'default';
       }
 
+      // Ready badge
+      const readyBadge = document.createElement('span');
+      readyBadge.className = 'ready-badge';
+      readyBadge.textContent = player.ready ? '✓' : '—';
+      readyBadge.style.color = player.ready ? '#00ff00' : '#666';
+      readyBadge.style.marginLeft = '8px';
+      readyBadge.style.fontWeight = 'bold';
+
       entry.appendChild(nameSpan);
       entry.appendChild(teamBtn);
+      entry.appendChild(readyBadge);
       this.playerList.appendChild(entry);
     }
   }

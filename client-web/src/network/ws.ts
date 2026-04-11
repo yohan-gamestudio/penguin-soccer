@@ -14,8 +14,12 @@ export interface ClientChangeTeam {
   team: number;
 }
 
-export interface ClientStartGame {
-  type: 'StartGame';
+export interface ClientToggleReady {
+  type: 'ToggleReady';
+}
+
+export interface ClientReturnToLobby {
+  type: 'ReturnToLobby';
 }
 
 export interface ClientSubmitAction {
@@ -28,7 +32,8 @@ export type ClientMessage =
   | ClientCreateRoom
   | ClientJoinRoom
   | ClientChangeTeam
-  | ClientStartGame
+  | ClientToggleReady
+  | ClientReturnToLobby
   | ClientSubmitAction;
 
 // Server -> Client
@@ -37,6 +42,7 @@ export interface PlayerInfo {
   id: number;
   team: number;
   name: string;
+  ready: boolean;
 }
 
 export interface EntityState {
@@ -53,6 +59,7 @@ export interface ServerRoomState {
   type: 'RoomState';
   players: PlayerInfo[];
   you: number;
+  room_state: string;
 }
 
 export interface ServerError {

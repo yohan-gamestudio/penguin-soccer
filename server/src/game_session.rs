@@ -8,7 +8,7 @@ use penguin_soccer_engine::domain::types::{PlayerId, TeamId, Vec2};
 use penguin_soccer_engine::engine::GameEngine;
 use penguin_soccer_engine::ports::event::GameEvent;
 use penguin_soccer_engine::rules::match_flow::MatchResult;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 
 use crate::protocol::{EntityState, ServerMessage};
 
@@ -33,11 +33,13 @@ pub struct GameSession {
     engine: GameEngine,
     player_senders: HashMap<PlayerId, mpsc::UnboundedSender<ServerMessage>>,
     command_rx: mpsc::UnboundedReceiver<GameCommand>,
+    game_over_tx: Option<oneshot::Sender<()>>,
 }
 
 impl GameSession {
     pub fn start(
         players: Vec<(PlayerId, TeamId, mpsc::UnboundedSender<ServerMessage>)>,
+        game_over_tx: oneshot::Sender<()>,
     ) -> mpsc::UnboundedSender<GameCommand> {
         let (cmd_tx, cmd_rx) = mpsc::unbounded_channel();
 
@@ -71,6 +73,7 @@ impl GameSession {
             engine,
             player_senders,
             command_rx: cmd_rx,
+            game_over_tx: Some(game_over_tx),
         };
 
         tokio::spawn(session.run());
@@ -134,6 +137,11 @@ impl GameSession {
                     }
                 }
             }
+        }
+
+        // Signal that the game session has ended
+        if let Some(tx) = self.game_over_tx.take() {
+            let _ = tx.send(());
         }
     }
 
