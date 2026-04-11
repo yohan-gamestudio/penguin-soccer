@@ -5,9 +5,9 @@ export class HudUI {
   private scoreDisplay: HTMLElement;
   private phaseDisplay: HTMLElement;
   private timerDisplay: HTMLElement;
+  private matchTimerDisplay: HTMLElement;
 
   private scores: Record<string, number> = { '0': 0, '1': 0 };
-  private planningDeadline: number = 0;
   private timerInterval: ReturnType<typeof setInterval> | null = null;
 
   constructor(ws: GameWebSocket) {
@@ -15,6 +15,7 @@ export class HudUI {
     this.scoreDisplay = document.getElementById('score-display')!;
     this.phaseDisplay = document.getElementById('phase-display')!;
     this.timerDisplay = document.getElementById('timer-display')!;
+    this.matchTimerDisplay = document.getElementById('match-timer')!;
 
     this.setupNetworkHandlers(ws);
   }
@@ -47,28 +48,31 @@ export class HudUI {
     this.phaseDisplay.textContent = text;
   }
 
-  private startPlanningTimer(deadline: number): void {
+  private startPlanningTimer(deadlineSeconds: number): void {
     this.stopTimer();
-    this.planningDeadline = deadline;
+    const endTime = Date.now() + deadlineSeconds * 1000;
 
     this.timerInterval = setInterval(() => {
-      const now = Date.now() / 1000;
-      const remaining = Math.max(0, Math.ceil(this.planningDeadline - now));
-      this.timerDisplay.textContent = `${remaining}s`;
+      const remaining = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
+      this.timerDisplay.textContent = `⏱ ${remaining}s`;
 
       if (remaining <= 5) {
-        this.timerDisplay.style.color = '#ff0000';
-        this.timerDisplay.style.animation = 'none';
-        // Force reflow then add pulse
-        void this.timerDisplay.offsetWidth;
+        this.timerDisplay.style.color = '#ff4444';
       } else {
-        this.timerDisplay.style.color = '#ff00ff';
+        this.timerDisplay.style.color = '#ffffff';
       }
 
       if (remaining <= 0) {
         this.stopTimer();
       }
     }, 200);
+  }
+
+  public updateMatchTimer(seconds: number): void {
+    const totalSeconds = Math.max(0, Math.floor(seconds));
+    const minutes = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    this.matchTimerDisplay.textContent = `${minutes}:${secs.toString().padStart(2, '0')}`;
   }
 
   private stopTimer(): void {
@@ -109,8 +113,8 @@ export class HudUI {
       this.setPhase(`GOAL by ${teamName}!!!`);
     });
 
-    ws.on('SimulationFrame', () => {
-      // Phase display is already set to "Simulating..."
+    ws.on('SimulationFrame', (msg) => {
+      this.updateMatchTimer(msg.match_timer);
     });
   }
 }

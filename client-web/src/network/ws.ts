@@ -78,6 +78,7 @@ export interface ServerSimulationFrame {
   type: 'SimulationFrame';
   penguins: EntityState[];
   ball: EntityState;
+  match_timer: number;
 }
 
 export interface ServerGoalScored {

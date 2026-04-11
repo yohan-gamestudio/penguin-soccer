@@ -183,7 +183,7 @@ impl GameSession {
             y: self.engine.state.ball.pos.y,
         };
 
-        self.broadcast(&ServerMessage::SimulationFrame { penguins, ball });
+        self.broadcast(&ServerMessage::SimulationFrame { penguins, ball, match_timer: self.engine.state.match_timer });
     }
 
     fn broadcast(&self, msg: &ServerMessage) {

@@ -24,7 +24,7 @@ pub enum ServerMessage {
     PhaseChanged { phase: String },
     PlanningStart { deadline: f64 },
     ActionConfirmed,
-    SimulationFrame { penguins: Vec<EntityState>, ball: EntityState },
+    SimulationFrame { penguins: Vec<EntityState>, ball: EntityState, match_timer: f64 },
     GoalScored { scoring_team: TeamId, scores: HashMap<TeamId, u32> },
     MatchEnded { result: String, scores: HashMap<TeamId, u32> },
 }
