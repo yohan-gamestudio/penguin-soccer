@@ -1,0 +1,275 @@
+@import url('https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&display=swap');
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: #0a0a1a;
+  color: #fff;
+  font-family: 'Comic Neue', 'Comic Sans MS', cursive, sans-serif;
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+}
+
+#game-container {
+  width: 100vw;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+}
+
+canvas {
+  display: block;
+}
+
+/* Overlays */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 10, 26, 0.92);
+  z-index: 100;
+  gap: 16px;
+}
+
+.title {
+  font-size: 4rem;
+  font-weight: 700;
+  background: linear-gradient(90deg, #ff00ff, #00ffff, #ffff00, #ff00ff);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: rainbow 3s linear infinite;
+  text-shadow: 0 0 20px rgba(255, 0, 255, 0.5);
+  letter-spacing: 4px;
+}
+
+@keyframes rainbow {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 300% 50%; }
+}
+
+.subtitle {
+  font-size: 1.8rem;
+  color: #ffff00;
+  text-shadow: 0 0 10px #ffff00;
+}
+
+/* Buttons */
+.btn-neon {
+  padding: 14px 36px;
+  font-size: 1.3rem;
+  font-family: 'Comic Neue', 'Comic Sans MS', cursive;
+  font-weight: 700;
+  border: 3px solid #ff00ff;
+  background: transparent;
+  color: #ff00ff;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  transition: all 0.2s;
+  border-radius: 8px;
+}
+
+.btn-neon:hover {
+  background: #ff00ff;
+  color: #0a0a1a;
+  box-shadow: 0 0 30px #ff00ff, 0 0 60px #ff00ff44;
+  transform: scale(1.05);
+}
+
+.btn-small {
+  padding: 10px 20px;
+  font-size: 1rem;
+}
+
+/* Join Row */
+.join-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+#input-room-code {
+  padding: 10px 16px;
+  font-size: 1.2rem;
+  font-family: 'Comic Neue', 'Comic Sans MS', cursive;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid #00ffff;
+  color: #00ffff;
+  border-radius: 8px;
+  text-transform: uppercase;
+  letter-spacing: 4px;
+  width: 180px;
+  text-align: center;
+}
+
+#input-room-code::placeholder {
+  color: rgba(0, 255, 255, 0.4);
+}
+
+.room-code {
+  font-size: 1.5rem;
+  color: #00ffff;
+  text-shadow: 0 0 10px #00ffff;
+  margin-bottom: 12px;
+}
+
+#room-code-display {
+  font-weight: 700;
+  letter-spacing: 4px;
+}
+
+/* Player list */
+#player-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0;
+  min-width: 300px;
+}
+
+.player-entry {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.player-entry .player-name {
+  font-size: 1.1rem;
+}
+
+.player-entry .team-btn {
+  padding: 4px 12px;
+  font-size: 0.9rem;
+  font-family: 'Comic Neue', 'Comic Sans MS', cursive;
+  font-weight: 700;
+  border: 2px solid;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+
+.team-btn.team-0 {
+  color: #4488ff;
+  border-color: #4488ff;
+}
+
+.team-btn.team-0:hover {
+  background: #4488ff;
+  color: #000;
+}
+
+.team-btn.team-1 {
+  color: #ff4444;
+  border-color: #ff4444;
+}
+
+.team-btn.team-1:hover {
+  background: #ff4444;
+  color: #000;
+}
+
+/* HUD */
+#hud {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 50;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 24px;
+  padding: 12px 24px;
+  background: rgba(10, 10, 26, 0.7);
+  backdrop-filter: blur(4px);
+}
+
+#score-display {
+  font-size: 1.8rem;
+  font-weight: 700;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.team-blue {
+  color: #4488ff;
+  text-shadow: 0 0 8px #4488ff88;
+}
+
+.team-red {
+  color: #ff4444;
+  text-shadow: 0 0 8px #ff444488;
+}
+
+.vs {
+  color: #888;
+  font-size: 1rem;
+}
+
+#phase-display {
+  font-size: 1.2rem;
+  color: #ffff00;
+  text-shadow: 0 0 6px #ffff0088;
+}
+
+#timer-display {
+  font-size: 1.4rem;
+  color: #ff00ff;
+  font-weight: 700;
+  min-width: 40px;
+  text-align: center;
+}
+
+/* Result overlay */
+#result-overlay .title {
+  font-size: 3.5rem;
+}
+
+#result-scores {
+  font-size: 2rem;
+  color: #fff;
+}
+
+/* Action confirm/cancel buttons */
+#action-buttons {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 15px;
+  z-index: 100;
+}
+
+.btn-confirm { background: #00ff00 !important; color: #000 !important; font-size: 1.3em; }
+.btn-cancel { background: #ff4444 !important; font-size: 1em; }
+
+/* Drag indicator (canvas-based, but we style some overlay text) */
+.drag-power-label {
+  position: fixed;
+  color: #ff00ff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  pointer-events: none;
+  text-shadow: 0 0 6px #ff00ff;
+  z-index: 60;
+}

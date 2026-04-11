@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PENGUIN SOCCER - 병맛 Edition</title>
+  <link rel="stylesheet" href="/src/styles.css" />
+</head>
+<body>
+  <div id="game-container"></div>
+
+  <!-- Lobby UI -->
+  <div id="lobby-overlay" class="overlay">
+    <h1 class="title">PENGUIN SOCCER</h1>
+    <p class="subtitle">병맛 Edition</p>
+    <div id="lobby-menu">
+      <button id="btn-create" class="btn-neon">CREATE ROOM</button>
+      <div class="join-row">
+        <input id="input-room-code" type="text" placeholder="ROOM CODE" maxlength="8" />
+        <button id="btn-join" class="btn-neon btn-small">JOIN</button>
+      </div>
+    </div>
+    <div id="lobby-room" style="display:none;">
+      <p class="room-code">Room: <span id="room-code-display">----</span></p>
+      <div id="player-list"></div>
+      <button id="btn-start" class="btn-neon" style="display:none;">START GAME</button>
+    </div>
+  </div>
+
+  <!-- HUD -->
+  <div id="hud" style="display:none;">
+    <div id="score-display">
+      <span class="team-blue">BLUE 0</span>
+      <span class="vs">vs</span>
+      <span class="team-red">RED 0</span>
+    </div>
+    <div id="phase-display">Waiting...</div>
+    <div id="timer-display"></div>
+  </div>
+
+  <!-- Action confirm/cancel buttons -->
+  <div id="action-buttons" style="display:none;">
+    <button id="btn-confirm-action" class="btn-neon btn-confirm">FIRE! 🐧</button>
+    <button id="btn-cancel-action" class="btn-neon btn-cancel">CANCEL</button>
+  </div>
+
+  <!-- Result Overlay -->
+  <div id="result-overlay" class="overlay" style="display:none;">
+    <h1 id="result-title" class="title">GAME OVER</h1>
+    <p id="result-scores" class="subtitle"></p>
+    <button id="btn-play-again" class="btn-neon">PLAY AGAIN</button>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
