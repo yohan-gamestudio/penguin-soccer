@@ -127,8 +127,13 @@ export class GameWebSocket {
     onClose: Array<() => void>;
   } = { onOpen: [], onClose: [] };
 
-  constructor(url: string = 'ws://localhost:3001/ws') {
-    this.url = url;
+  constructor(url?: string) {
+    if (url) {
+      this.url = url;
+    } else {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      this.url = `${protocol}//${window.location.host}/ws`;
+    }
   }
 
   public connect(): void {
