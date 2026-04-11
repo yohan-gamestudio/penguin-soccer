@@ -189,13 +189,16 @@ class Game {
       const state = msg.penguins[i];
       const [wx, wy] = engineToWorld(state.x, state.y);
 
+      // Map array index to player ID using the players array order
+      const playerId = i < this.players.length ? this.players[i].id : i;
+
       // Get or create penguin
-      let penguin = this.penguins.get(i);
+      let penguin = this.penguins.get(playerId);
       if (!penguin) {
         const team = this.getTeamForPenguinIndex(i);
-        penguin = new PenguinMesh(i, team);
+        penguin = new PenguinMesh(playerId, team);
         penguin.setPositionImmediate(wx, wy);
-        this.penguins.set(i, penguin);
+        this.penguins.set(playerId, penguin);
         this.scene.scene.add(penguin.group);
       }
       penguin.updatePosition(wx, wy);
@@ -216,8 +219,8 @@ class Game {
   private ensurePenguinsExist(): void {
     // Create penguins for all players if they don't exist yet
     for (let i = 0; i < this.players.length; i++) {
-      if (!this.penguins.has(i)) {
-        const player = this.players[i];
+      const player = this.players[i];
+      if (!this.penguins.has(player.id)) {
         const penguin = new PenguinMesh(player.id, player.team);
 
         // Default positions: spread across the field
@@ -226,19 +229,16 @@ class Game {
         const [wx, wy] = engineToWorld(side, yOffset);
         penguin.setPositionImmediate(wx, wy);
 
-        this.penguins.set(i, penguin);
+        this.penguins.set(player.id, penguin);
         this.scene.scene.add(penguin.group);
       }
     }
   }
 
   private updateDragPenguinPosition(): void {
-    // Find our penguin and set drag origin
-    for (const [idx, penguin] of this.penguins) {
-      if (idx < this.players.length && this.players[idx].id === this.myId) {
-        this.drag.setPenguinWorldPosition(penguin.group.position);
-        break;
-      }
+    const myPenguin = this.penguins.get(this.myId);
+    if (myPenguin) {
+      this.drag.setPenguinWorldPosition(myPenguin.group.position);
     }
   }
 
