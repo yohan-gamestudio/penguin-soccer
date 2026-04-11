@@ -13,7 +13,7 @@ export class BallMesh {
   constructor() {
     this.mesh = new THREE.Group();
 
-    // Main ball - white sphere
+    // Main ball - white sphere with standard material
     const geo = new THREE.SphereGeometry(0.6, 16, 16);
     const mat = new THREE.MeshStandardMaterial({
       color: 0xffffff,
@@ -25,33 +25,8 @@ export class BallMesh {
     this.sphere.castShadow = true;
     this.mesh.add(this.sphere);
 
-    // Black pentagon patches for soccer ball look
-    const patchGeo = new THREE.CircleGeometry(0.2, 5);
-    const patchMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
-
-    const patchPositions = [
-      [0, 0, 0.61],
-      [0.4, 0.3, 0.4],
-      [-0.4, 0.3, 0.4],
-      [0.4, -0.3, 0.4],
-      [-0.4, -0.3, 0.4],
-    ];
-
-    for (const [px, py, pz] of patchPositions) {
-      const patch = new THREE.Mesh(patchGeo, patchMat);
-      patch.position.set(px, py, pz + 0.6);
-      patch.lookAt(0, 0, 0.6);
-      this.mesh.add(patch);
-    }
-
-    // Glow effect
-    const glowGeo = new THREE.SphereGeometry(0.75, 16, 16);
-    const glowMat = new THREE.MeshBasicMaterial({
-      color: 0xffff00,
-      transparent: true,
-      opacity: 0.1,
-    });
-    const glow = new THREE.Mesh(glowGeo, glowMat);
+    // Subtle glow point light attached to ball
+    const glow = new THREE.PointLight(0xffffff, 0.3, 5);
     glow.position.z = 0.6;
     this.mesh.add(glow);
   }

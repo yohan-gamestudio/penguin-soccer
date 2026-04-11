@@ -17,19 +17,34 @@ export function engineToWorld(ex: number, ey: number): [number, number] {
 }
 
 export function createField(scene: THREE.Scene): void {
-  // Field surface
+  // Large dark floor plane below field
+  const floorGeo = new THREE.PlaneGeometry(200, 200);
+  const floorMat = new THREE.MeshStandardMaterial({
+    color: 0x001133,
+    roughness: 0.3,
+    metalness: 0.5,
+  });
+  const floor = new THREE.Mesh(floorGeo, floorMat);
+  floor.position.set(0, 0, -5);
+  floor.receiveShadow = true;
+  scene.add(floor);
+
+  // Field surface - glacial blue ice
   const fieldGeo = new THREE.PlaneGeometry(FIELD_WIDTH, FIELD_HEIGHT);
   const fieldMat = new THREE.MeshStandardMaterial({
-    color: 0x1a8c1a,
-    roughness: 0.8,
+    color: 0xaaddff,
+    roughness: 0.1,
+    metalness: 0.2,
+    transparent: true,
+    opacity: 0.85,
   });
   const field = new THREE.Mesh(fieldGeo, fieldMat);
   field.position.set(0, 0, -0.1);
   field.receiveShadow = true;
   scene.add(field);
 
-  // Field markings (white lines)
-  const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  // Field markings (white lines, subtle opacity)
+  const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2, transparent: true, opacity: 0.4 });
 
   // Outline
   const outlinePoints = [
@@ -40,7 +55,7 @@ export function createField(scene: THREE.Scene): void {
     new THREE.Vector3(-FIELD_WIDTH / 2, -FIELD_HEIGHT / 2, 0),
   ];
   const outlineGeo = new THREE.BufferGeometry().setFromPoints(outlinePoints);
-  const outline = new THREE.Line(outlineGeo, new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2 }));
+  const outline = new THREE.Line(outlineGeo, lineMat);
   outline.position.z = 0.01;
   scene.add(outline);
 
@@ -50,19 +65,23 @@ export function createField(scene: THREE.Scene): void {
     new THREE.Vector3(0, FIELD_HEIGHT / 2, 0),
   ];
   const centerLineGeo = new THREE.BufferGeometry().setFromPoints(centerLinePoints);
-  const centerLine = new THREE.Line(centerLineGeo, new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 2 }));
+  const centerLine = new THREE.Line(centerLineGeo, lineMat);
   centerLine.position.z = 0.01;
   scene.add(centerLine);
 
   // Center circle
   const circleGeo = new THREE.RingGeometry(5.8, 6, 32);
-  const circleMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
+  const circleMat = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    side: THREE.DoubleSide,
+    transparent: true,
+    opacity: 0.4,
+  });
   const centerCircle = new THREE.Mesh(circleGeo, circleMat);
   centerCircle.position.z = 0.01;
   scene.add(centerCircle);
 
-  // Goal areas - colored rectangles at left/right edges
-  // Goal width in engine: height * 0.3 = 400 * 0.3 = 120 => 12 Three.js units
+  // Goal areas - semi-transparent glow rectangles
   const goalDepth = 3;
   const goalWidth = 12;
 
@@ -70,8 +89,10 @@ export function createField(scene: THREE.Scene): void {
   const leftGoalGeo = new THREE.PlaneGeometry(goalDepth, goalWidth);
   const leftGoalMat = new THREE.MeshStandardMaterial({
     color: 0x4488ff,
+    emissive: 0x4488ff,
+    emissiveIntensity: 0.3,
     transparent: true,
-    opacity: 0.5,
+    opacity: 0.4,
   });
   const leftGoal = new THREE.Mesh(leftGoalGeo, leftGoalMat);
   leftGoal.position.set(-FIELD_WIDTH / 2 - goalDepth / 2, 0, 0);
@@ -85,16 +106,18 @@ export function createField(scene: THREE.Scene): void {
     new THREE.Vector3(-FIELD_WIDTH / 2, goalWidth / 2, 0),
   ];
   const leftFrameGeo = new THREE.BufferGeometry().setFromPoints(leftFramePoints);
-  const leftFrame = new THREE.Line(leftFrameGeo, new THREE.LineBasicMaterial({ color: 0x4488ff, linewidth: 2 }));
+  const leftFrame = new THREE.Line(leftFrameGeo, new THREE.LineBasicMaterial({ color: 0x4488ff, linewidth: 2, transparent: true, opacity: 0.6 }));
   leftFrame.position.z = 0.02;
   scene.add(leftFrame);
 
   // Right goal (team 1 - red)
   const rightGoalGeo = new THREE.PlaneGeometry(goalDepth, goalWidth);
   const rightGoalMat = new THREE.MeshStandardMaterial({
-    color: 0xff4444,
+    color: 0xff3333,
+    emissive: 0xff3333,
+    emissiveIntensity: 0.3,
     transparent: true,
-    opacity: 0.5,
+    opacity: 0.4,
   });
   const rightGoal = new THREE.Mesh(rightGoalGeo, rightGoalMat);
   rightGoal.position.set(FIELD_WIDTH / 2 + goalDepth / 2, 0, 0);
@@ -108,19 +131,19 @@ export function createField(scene: THREE.Scene): void {
     new THREE.Vector3(FIELD_WIDTH / 2, goalWidth / 2, 0),
   ];
   const rightFrameGeo = new THREE.BufferGeometry().setFromPoints(rightFramePoints);
-  const rightFrame = new THREE.Line(rightFrameGeo, new THREE.LineBasicMaterial({ color: 0xff4444, linewidth: 2 }));
+  const rightFrame = new THREE.Line(rightFrameGeo, new THREE.LineBasicMaterial({ color: 0xff3333, linewidth: 2, transparent: true, opacity: 0.6 }));
   rightFrame.position.z = 0.02;
   scene.add(rightFrame);
 
-  // Walls - thin box geometries around edges
+  // Walls - dark subtle color
   const wallHeight = 1.5;
   const wallThickness = 0.3;
   const wallMat = new THREE.MeshStandardMaterial({
-    color: 0xff00ff,
-    emissive: 0xff00ff,
-    emissiveIntensity: 0.3,
+    color: 0x334466,
     transparent: true,
-    opacity: 0.6,
+    opacity: 0.7,
+    roughness: 0.5,
+    metalness: 0.3,
   });
 
   // Top wall
