@@ -24,15 +24,21 @@ export class DragInput {
   private pendingResult: DragResult | null = null;
   private enabled = false;
 
-  // For rendering the drag indicator
-  private indicatorLine: THREE.Line | null = null;
-  private indicatorArrow: THREE.Mesh | null = null;
+  // For rendering the drag indicator — pre-allocated, never recreated
+  private indicatorLine: THREE.Line;
+  private indicatorArrow: THREE.Mesh;
+  private indicatorLineGeo: THREE.BufferGeometry;
+  private indicatorLineMat: THREE.LineBasicMaterial;
+  private indicatorArrowMat: THREE.MeshBasicMaterial;
   private scene: THREE.Scene;
 
   // The penguin position we're dragging from (screen coords)
   private penguinScreenX = 0;
   private penguinScreenY = 0;
   private penguinWorldPos: THREE.Vector3 = new THREE.Vector3();
+
+  // Reusable scratch objects — avoid per-frame allocation
+  private _color: THREE.Color = new THREE.Color();
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -42,6 +48,29 @@ export class DragInput {
     this.canvas = canvas;
     this.camera = camera;
     this.scene = scene;
+
+    // --- Pre-create line ---
+    this.indicatorLineGeo = new THREE.BufferGeometry();
+    // Allocate a Float32Array for 2 points (6 floats) and register it
+    const linePositions = new Float32Array(6);
+    this.indicatorLineGeo.setAttribute(
+      'position',
+      new THREE.BufferAttribute(linePositions, 3)
+    );
+    this.indicatorLineMat = new THREE.LineBasicMaterial({ color: 0x00ff00, linewidth: 2 });
+    this.indicatorLine = new THREE.Line(this.indicatorLineGeo, this.indicatorLineMat);
+    this.indicatorLine.visible = false;
+    this.indicatorLine.frustumCulled = false;
+    scene.add(this.indicatorLine);
+
+    // --- Pre-create arrow head ---
+    // Fixed-size cone; we'll scale it per-frame instead of recreating geometry
+    const arrowGeo = new THREE.ConeGeometry(0.8, 1.5, 6);
+    this.indicatorArrowMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+    this.indicatorArrow = new THREE.Mesh(arrowGeo, this.indicatorArrowMat);
+    this.indicatorArrow.visible = false;
+    this.indicatorArrow.frustumCulled = false;
+    scene.add(this.indicatorArrow);
 
     // Mouse events
     canvas.addEventListener('mousedown', this.onPointerDown.bind(this));
@@ -98,6 +127,16 @@ export class DragInput {
 
   public isCurrentlyDragging(): boolean {
     return this.isDragging;
+  }
+
+  /** Call when the DragInput instance is no longer needed. */
+  public dispose(): void {
+    this.scene.remove(this.indicatorLine);
+    this.scene.remove(this.indicatorArrow);
+    this.indicatorLineGeo.dispose();
+    this.indicatorLineMat.dispose();
+    this.indicatorArrow.geometry.dispose();
+    this.indicatorArrowMat.dispose();
   }
 
   private onTouchStart(e: TouchEvent): void {
@@ -180,72 +219,53 @@ export class DragInput {
   }
 
   private updateIndicator(): void {
-    this.clearIndicator();
-
     const dx = this.startX - this.currentX;
     const dy = this.startY - this.currentY;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
-    if (dist < MIN_DRAG_DISTANCE) return;
+    if (dist < MIN_DRAG_DISTANCE) {
+      this.clearIndicator();
+      return;
+    }
 
     const power = Math.min(dist / MAX_DRAG_DISTANCE, 1.0);
 
     // Direction arrow: show where the penguin will go (slingshot direction)
-    const len = Math.sqrt(dx * dx + dy * dy);
-    const ndx = dx / len;
-    const ndy = -dy / len;
+    const ndx = dx / dist;
+    const ndy = -dy / dist; // invert Y for world coords
 
     // Draw arrow from penguin position in world space
     const arrowLength = 3 + power * 8;
-    const endPoint = new THREE.Vector3(
-      this.penguinWorldPos.x + ndx * arrowLength,
-      this.penguinWorldPos.y + ndy * arrowLength,
-      1.0
-    );
+    const endX = this.penguinWorldPos.x + ndx * arrowLength;
+    const endY = this.penguinWorldPos.y + ndy * arrowLength;
+    const endZ = 1.0;
 
-    // Color: green -> yellow -> red based on power
+    // Color: green -> yellow -> red based on power (no allocation — reuse _color)
     const r = Math.min(power * 2, 1.0);
     const g = Math.min((1 - power) * 2, 1.0);
-    const color = new THREE.Color(r, g, 0);
+    this._color.setRGB(r, g, 0);
 
-    // Line
-    const points = [
-      new THREE.Vector3(this.penguinWorldPos.x, this.penguinWorldPos.y, 1.0),
-      endPoint,
-    ];
-    const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
-    const lineMat = new THREE.LineBasicMaterial({
-      color: color,
-      linewidth: 2,
-    });
-    this.indicatorLine = new THREE.Line(lineGeo, lineMat);
-    this.scene.add(this.indicatorLine);
+    // --- Update line geometry in-place (no allocation) ---
+    const posAttr = this.indicatorLineGeo.attributes['position'] as THREE.BufferAttribute;
+    posAttr.setXYZ(0, this.penguinWorldPos.x, this.penguinWorldPos.y, 1.0);
+    posAttr.setXYZ(1, endX, endY, endZ);
+    posAttr.needsUpdate = true;
+    this.indicatorLineMat.color.copy(this._color);
+    this.indicatorLine.visible = true;
 
-    // Arrow head
-    const arrowGeo = new THREE.ConeGeometry(0.3 + power * 0.5, 1.0 + power * 0.5, 6);
-    const arrowMat = new THREE.MeshBasicMaterial({ color: color });
-    this.indicatorArrow = new THREE.Mesh(arrowGeo, arrowMat);
-    this.indicatorArrow.position.copy(endPoint);
-
-    // Rotate arrow to point in direction
+    // --- Update arrow head in-place ---
+    this.indicatorArrow.position.set(endX, endY, endZ);
+    // Scale the fixed ConeGeometry(0.8, 1.5) to mimic power-dependent sizing
+    const coneScale = 0.375 + power * 0.625; // maps [0,1] -> [0.375, 1.0]
+    this.indicatorArrow.scale.setScalar(coneScale);
     const angle = Math.atan2(ndy, ndx);
-    this.indicatorArrow.rotation.z = angle - Math.PI / 2;
-    this.indicatorArrow.rotation.x = Math.PI / 2;
-    this.scene.add(this.indicatorArrow);
+    this.indicatorArrow.rotation.set(Math.PI / 2, 0, angle - Math.PI / 2);
+    this.indicatorArrowMat.color.copy(this._color);
+    this.indicatorArrow.visible = true;
   }
 
   private clearIndicator(): void {
-    if (this.indicatorLine) {
-      this.scene.remove(this.indicatorLine);
-      this.indicatorLine.geometry.dispose();
-      (this.indicatorLine.material as THREE.Material).dispose();
-      this.indicatorLine = null;
-    }
-    if (this.indicatorArrow) {
-      this.scene.remove(this.indicatorArrow);
-      this.indicatorArrow.geometry.dispose();
-      (this.indicatorArrow.material as THREE.Material).dispose();
-      this.indicatorArrow = null;
-    }
+    this.indicatorLine.visible = false;
+    this.indicatorArrow.visible = false;
   }
 }
