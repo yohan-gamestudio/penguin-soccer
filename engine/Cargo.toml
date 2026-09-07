@@ -1,8 +1,0 @@
-[package]
-name = "penguin-soccer-engine"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-
-[dev-dependencies]

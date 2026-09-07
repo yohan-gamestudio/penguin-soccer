@@ -1,7 +1,2 @@
-/target
-Cargo.lock
-*.png
-.playwright-mcp/
-.omc/
 node_modules/
-client-web/dist/
+*.log
